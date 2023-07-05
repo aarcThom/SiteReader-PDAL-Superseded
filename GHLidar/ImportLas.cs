@@ -29,6 +29,21 @@ namespace SiteReader
         {
         }
 
+        //This region overrides the typical component layout
+        public override void CreateAttributes()
+        {
+            m_attributes = new UIAttributes.ButtonAttributes(this);
+        }
+
+        //global variables
+        private bool iVal = false;
+        public bool ImpValue
+        {
+            get { return iVal; }
+            set { iVal = value; }
+        }
+
+
         /// <summary>
         /// Registers all the input parameters for this component.
         /// </summary>
@@ -93,7 +108,7 @@ namespace SiteReader
                 return;
             }
 
-
+            iVal = true;
             List<object> pipe = new List<object>();
             pipe.Add(testPath);
             string json = JsonConvert.SerializeObject(pipe.ToArray());
