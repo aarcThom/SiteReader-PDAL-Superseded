@@ -39,7 +39,9 @@ namespace SiteReader.UIAttributes
         //button appearance attributes
         private static readonly string ButtonSetText = "Clicked";
         private static readonly string ButtonUnsetText = "Click Me";
+
         private string ButtonText { get; set; } = ButtonUnsetText;
+        private GH_Palette ButtonAppearance { get; set; } = GH_Palette.Black;
 
         protected override void Render(GH_Canvas canvas, System.Drawing.Graphics graphics, GH_CanvasChannel channel)
         {
@@ -47,7 +49,7 @@ namespace SiteReader.UIAttributes
 
             if (channel == GH_CanvasChannel.Objects)
             {
-                GH_Capsule button = GH_Capsule.CreateTextCapsule(ButtonBounds, ButtonBounds, GH_Palette.White, ButtonText, 2, 0);
+                GH_Capsule button = GH_Capsule.CreateTextCapsule(ButtonBounds, ButtonBounds, ButtonAppearance, ButtonText, 2, 0);
                 button.Render(graphics, Selected, Owner.Locked, false);
                 button.Dispose();
             }
@@ -61,6 +63,7 @@ namespace SiteReader.UIAttributes
                 {
                     Owner.RecordUndoEvent("Button Clicked");
                     ButtonText = ButtonText == ButtonUnsetText ? ButtonSetText : ButtonUnsetText;
+                    ButtonAppearance = ButtonText == ButtonUnsetText ? GH_Palette.Black : GH_Palette.Pink;
                     Owner.OnDisplayExpired(true);
                     return GH_ObjectResponse.Handled;
                 }
