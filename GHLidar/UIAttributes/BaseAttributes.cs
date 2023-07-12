@@ -14,19 +14,36 @@ namespace SiteReader.UIAttributes
     {
         public BaseAttributes(GH_Component owner) : base(owner) { } //constructor
 
+        //FIELDS ------------------------------------------------------------------
+        //rectangles for layouts
+        private RectangleF ButtonBounds;
+
         protected override void Layout()
         {
             base.Layout(); //handles the basic layout, computes the bounds, etc.
-            System.Drawing.Rectangle componentRec = GH_Convert.ToRectangle(Bounds); //getting component base bounds
+            Rectangle componentRec = GH_Convert.ToRectangle(Bounds); //getting component base bounds
+
+            //saving the original bounds to refer to in custom layout
+            var left = componentRec.Left;
+            var top = componentRec.Top;
+            var right = componentRec.Right;
+            var bottom = componentRec.Bottom;
+            var width = componentRec.Width;
+            var height = componentRec.Height;
+
+            //useful layout variables like spacers, etc.
+            int horizSpacer = 10;
+            int sideSpacer = 2;
 
             //here we can modify the bounds
             componentRec.Height += 200; // for example
 
-            //here we can assign the modified bounds to the component's bounds
+            //here we can assign the modified bounds to the component's bounds--------------------
             Bounds = componentRec;
 
-            //here we can add extra stuff to the layout
-
+            //here we can add extra STATIC stuff to the layout-------------------------------------------
+            ButtonBounds = new RectangleF(left, bottom + horizSpacer, width, 20);
+            ButtonBounds.Inflate(-sideSpacer, 0);
 
 
         }
@@ -38,9 +55,9 @@ namespace SiteReader.UIAttributes
             //the main component rendering channel
             if (channel == GH_CanvasChannel.Objects)
             {
-                //declare the pens / brushes we will need to draw the custom objects - defaults for blank / message levels
+                //declare the pens / brushes / pallets we will need to draw the custom objects - defaults for blank / message levels
                 Pen outLine = CompStyles.BlankOutline;
-
+                GH_Palette pallete = GH_Palette.Normal;
 
                 //use a switch statement to retrieve the proper pens / brushes from our CompColors class
                 switch (Owner.RuntimeMessageLevel)
@@ -48,13 +65,23 @@ namespace SiteReader.UIAttributes
                     case GH_RuntimeMessageLevel.Warning:
                         // assign warning values
                         outLine = CompStyles.WarnOutline;
+                        pallete = GH_Palette.Warning;
                         break;
 
                     case GH_RuntimeMessageLevel.Error:
                         // assign warning values
                         outLine = CompStyles.ErrorOutline;
+                        pallete = GH_Palette.Error;
                         break;
                 }
+
+
+                //render custom elements----------------------------------------------------------
+                string buttonText = "ClickMe";
+                GH_Capsule button = GH_Capsule.CreateTextCapsule(ButtonBounds, ButtonBounds, GH_Palette.Black, buttonText);
+                button.Render(graphics, Selected,Owner.Locked,false);
+                button.Dispose();
+
             }
 
         }
