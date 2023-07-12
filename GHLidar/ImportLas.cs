@@ -32,7 +32,7 @@ namespace SiteReader
         //This region overrides the typical component layout
         public override void CreateAttributes()
         {
-            m_attributes = new UIAttributes.ButtonAttributes(this);
+            m_attributes = new UIAttributes.BaseAttributes(this);
         }
 
         //global variables

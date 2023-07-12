@@ -25,6 +25,7 @@ namespace SiteReader.UIAttributes
         private float _dragStartX = 0; // the slider handle position
         private float _deltaX; // the current move of the handle
         private bool currentlyDrag = false; //is the handle being dragged?
+        private float currentHandlePos;
 
         private bool previewCloud = false;
 
@@ -73,12 +74,14 @@ namespace SiteReader.UIAttributes
 
             //adjusting the slider location
 
-            if (currentlyDrag)
+            if (_notSlid)
             {
-                _sliderPercent = SliderBounds.Left + _deltaX;
+                _sliderPercent = SliderBounds.Left;
+            } else if (currentlyDrag)
+            {
+                _sliderPercent = currentHandlePos;
             }
-            else _sliderPercent = _dragStartX;
-            
+
 
 
 
@@ -225,12 +228,13 @@ namespace SiteReader.UIAttributes
             if (currentlyDrag)
             {
                 _deltaX = e.CanvasLocation.X - _dragStartX;
+                currentHandlePos = e.CanvasLocation.X;
 
                 //use the drag cursor
                 Grasshopper.Instances.CursorServer.AttachCursor(sender, "GH_NumericSlider");
 
                 Owner.ExpireSolution(true);
-                return GH_ObjectResponse.Ignore;
+                return GH_ObjectResponse.Capture;
             }
 
             return base.RespondToMouseMove(sender, e);
