@@ -4,9 +4,11 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Grasshopper.GUI;
 using Grasshopper.GUI.Canvas;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Attributes;
+using System.Windows.Forms;
 
 namespace SiteReader.UIAttributes
 {
@@ -17,6 +19,12 @@ namespace SiteReader.UIAttributes
         //FIELDS ------------------------------------------------------------------
         //rectangles for layouts
         private RectangleF ButtonBounds;
+        private RectangleF SecondCapsuleBounds;
+
+        //preview the Cloud?
+        private bool PreviewCloud = false;
+        private string buttonText = "false";
+
 
         protected override void Layout()
         {
@@ -34,14 +42,18 @@ namespace SiteReader.UIAttributes
             //useful layout variables like spacers, etc.
             int horizSpacer = 10;
             int sideSpacer = 2;
+            int extraHeight = 200;
 
             //here we can modify the bounds
-            componentRec.Height += 200; // for example
+            componentRec.Height += extraHeight; // for example
 
             //here we can assign the modified bounds to the component's bounds--------------------
             Bounds = componentRec;
 
             //here we can add extra STATIC stuff to the layout-------------------------------------------
+            SecondCapsuleBounds = new RectangleF(left, bottom, width, extraHeight);
+
+
             ButtonBounds = new RectangleF(left, bottom + horizSpacer, width, 20);
             ButtonBounds.Inflate(-sideSpacer, 0);
 
@@ -77,13 +89,35 @@ namespace SiteReader.UIAttributes
 
 
                 //render custom elements----------------------------------------------------------
-                string buttonText = "ClickMe";
+
+                //secondary capsule
+                GH_Capsule secondCap = GH_Capsule.CreateCapsule(SecondCapsuleBounds, pallete);
+                secondCap.Render(graphics, Selected, Owner.Locked, false);
+                secondCap.Dispose();
+
                 GH_Capsule button = GH_Capsule.CreateTextCapsule(ButtonBounds, ButtonBounds, GH_Palette.Black, buttonText);
                 button.Render(graphics, Selected,Owner.Locked,false);
                 button.Dispose();
 
             }
 
+        }
+
+        public override GH_ObjectResponse RespondToMouseDoubleClick(GH_Canvas sender, GH_CanvasMouseEvent e)
+        {
+            if (e.Button == MouseButtons.Left /*&& Owner.RuntimeMessageLevel == GH_RuntimeMessageLevel.Blank*/) 
+            {
+                if (ButtonBounds.Contains(e.CanvasLocation))
+                {
+                    Owner.RecordUndoEvent("SiteReader button clicked");
+                    PreviewCloud = PreviewCloud == false;
+                    buttonText = PreviewCloud.ToString();
+                    Owner.OnDisplayExpired(true);
+                    return GH_ObjectResponse.Handled;
+                }
+            }
+
+            return base.RespondToMouseDoubleClick (sender, e);
         }
     }
 
