@@ -1,14 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Eventing.Reader;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Grasshopper.GUI;
 using Grasshopper.GUI.Canvas;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Attributes;
-using System.Windows.Forms;
+using Eto.Forms;
+using Rhino.UI;
+using MouseButtons = System.Windows.Forms.MouseButtons;
 
 namespace SiteReader.UIAttributes
 {
@@ -20,10 +25,21 @@ namespace SiteReader.UIAttributes
         //rectangles for layouts
         private RectangleF ButtonBounds;
         private RectangleF SecondCapsuleBounds;
+        private RectangleF SliderBounds;
+        private RectangleF HandleShape;
 
         //preview the Cloud?
         private bool PreviewCloud = false;
         private string buttonText = "false";
+
+        //field for slider handle position
+        private bool _slid = false;
+        private bool _currentlySliding = false;
+        private float _handlePosX;
+        private float _handlePosY;
+        private float _curHandleOffset = 0;
+        private List<float> _handleOffsets;
+        private float _handleWidth = 8;
 
 
         protected override void Layout()
@@ -50,11 +66,44 @@ namespace SiteReader.UIAttributes
             //here we can assign the modified bounds to the component's bounds--------------------
             Bounds = componentRec;
 
-            //here we can add extra STATIC stuff to the layout-------------------------------------------
+            //here we can add extra stuff to the layout-------------------------------------------
             SecondCapsuleBounds = new RectangleF(left, bottom, width, extraHeight);
 
+            SliderBounds = new RectangleF(left, bottom + horizSpacer, width, 20);
+            SliderBounds.Inflate(-sideSpacer*4, 0);
 
-            ButtonBounds = new RectangleF(left, bottom + horizSpacer, width, 20);
+
+            //slider handle and code to move it properly
+             _handleWidth = 8;
+            _handlePosY = SliderBounds.Height / 2 - _handleWidth / 2 + SliderBounds.Top;
+
+
+            //getting the handle snap locations
+            _handleOffsets = new List<float>();
+            for (int i = 0; i < 11; i++)
+            {
+                var iFl = (float)i;
+                var offsetX = iFl * (SliderBounds.Width / 10) - _handleWidth/2;
+                _handleOffsets.Add(offsetX);
+            }
+
+            //getting current position
+            if (!_slid)
+            {
+                _handlePosX = SliderBounds.Left - _handleWidth / 2;
+            }
+            
+            else
+            {
+                _handlePosX = SliderBounds.Left + _curHandleOffset;
+            }
+            
+
+            HandleShape = new RectangleF(_handlePosX, _handlePosY, _handleWidth, _handleWidth);
+
+
+            //the button
+            ButtonBounds = new RectangleF(left, bottom + horizSpacer*2 + SliderBounds.Height, width, 20);
             ButtonBounds.Inflate(-sideSpacer, 0);
 
 
@@ -95,6 +144,37 @@ namespace SiteReader.UIAttributes
                 secondCap.Render(graphics, Selected, Owner.Locked, false);
                 secondCap.Dispose();
 
+                //slider line
+                var sliderY = SliderBounds.Top + SliderBounds.Height / 2;
+                graphics.DrawLine(outLine, SliderBounds.Left, sliderY, SliderBounds.Right, sliderY);
+
+                //slider line vertical ticks
+                int count = 0;
+                foreach (var offset in _handleOffsets)
+                {
+                    var tickX = offset + SliderBounds.Left + _handleWidth / 2;
+
+                    float top;
+                    if (count % 5 == 0)
+                    {
+                        top = SliderBounds.Top + 2;
+                    }
+                    else
+                    {
+                        top = SliderBounds.Top + 5;
+                    }
+
+                    graphics.DrawLine(outLine, tickX, sliderY, tickX, top);
+
+                    count++;
+                }
+
+                //slider handle
+                graphics.FillEllipse(CompStyles.HandleFill, HandleShape);
+                graphics.DrawEllipse(outLine, HandleShape);
+
+
+                //preview cloud button
                 GH_Capsule button = GH_Capsule.CreateTextCapsule(ButtonBounds, ButtonBounds, GH_Palette.Black, buttonText);
                 button.Render(graphics, Selected,Owner.Locked,false);
                 button.Dispose();
@@ -103,6 +183,7 @@ namespace SiteReader.UIAttributes
 
         }
 
+        //handling double clicks
         public override GH_ObjectResponse RespondToMouseDoubleClick(GH_Canvas sender, GH_CanvasMouseEvent e)
         {
             if (e.Button == MouseButtons.Left /*&& Owner.RuntimeMessageLevel == GH_RuntimeMessageLevel.Blank*/) 
@@ -119,6 +200,74 @@ namespace SiteReader.UIAttributes
 
             return base.RespondToMouseDoubleClick (sender, e);
         }
+        
+        //handling slider
+        public override GH_ObjectResponse RespondToMouseDown(GH_Canvas sender, GH_CanvasMouseEvent e)
+        {
+            if (e.Button == MouseButtons.Left && !PreviewCloud)
+            {
+                if (HandleShape.Contains(e.CanvasLocation))
+                {
+                    //use the drag cursor
+                    Grasshopper.Instances.CursorServer.AttachCursor(sender, "GH_NumericSlider");
+
+                    _currentlySliding = true;
+
+
+                    Owner.ExpireSolution(false);
+                    return GH_ObjectResponse.Capture;
+                }
+            }
+
+
+            return base.RespondToMouseDown(sender, e);
+        }
+
+        public override GH_ObjectResponse RespondToMouseMove(GH_Canvas sender, GH_CanvasMouseEvent e)
+        {
+            if (e.Button == MouseButtons.Left && _currentlySliding)
+            {
+                _slid = true;
+                
+                var currentX = e.CanvasX;
+                //slide the handle around within limits
+                if (currentX < SliderBounds.Left)
+                {
+                    _curHandleOffset = -_handleWidth / 2;
+                } 
+                else if (currentX > SliderBounds.Right)
+                {
+                    _curHandleOffset = SliderBounds.Width - _handleWidth / 2;
+                }
+                else
+                {
+                    _curHandleOffset = currentX - SliderBounds.Left - _handleWidth / 2;
+                }
+                Owner.OnSolutionExpired(true);
+
+                return GH_ObjectResponse.Ignore;
+            }
+
+            return base.RespondToMouseMove(sender, e);
+        }
+
+        public override GH_ObjectResponse RespondToMouseUp(GH_Canvas sender, GH_CanvasMouseEvent e)
+        {
+
+            if (e.Button == MouseButtons.Left && _currentlySliding)
+            {
+
+                //snap the handle to a notch
+                var currentX = e.CanvasX - SliderBounds.Left;
+                _curHandleOffset = _handleOffsets.Aggregate((x, y) => Math.Abs(x - currentX) < Math.Abs(y - currentX) ? x : y);
+
+                _currentlySliding = false;
+                Owner.ExpireSolution(true);
+                return GH_ObjectResponse.Release;
+
+            }
+            return base.RespondToMouseUp(sender, e);
+        }
     }
 
     /// <summary>
@@ -132,8 +281,10 @@ namespace SiteReader.UIAttributes
         private static readonly Color ErrorOutlineCol = Color.FromArgb(255, 60, 0, 0);
 
         //properties
-        public static Pen BlankOutline => new Pen(BlankOutlineCol);
-        public static Pen WarnOutline => new Pen(WarnOutlineCol);
-        public static Pen ErrorOutline => new Pen(ErrorOutlineCol);
+        public static Pen BlankOutline => new Pen(BlankOutlineCol){EndCap = System.Drawing.Drawing2D.LineCap.Round};
+        public static Pen WarnOutline => new Pen(WarnOutlineCol) { EndCap = System.Drawing.Drawing2D.LineCap.Round };
+        public static Pen ErrorOutline => new Pen(ErrorOutlineCol) { EndCap = System.Drawing.Drawing2D.LineCap.Round };
+
+        public static Brush HandleFill => new SolidBrush(Color.AliceBlue);
     }
 }
