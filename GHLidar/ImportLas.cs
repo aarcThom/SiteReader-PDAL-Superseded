@@ -22,6 +22,7 @@ namespace SiteReader
         /// Subcategory the panel. If you use non-existing tab or panel names, 
         /// new tabs/panels will automatically be created.
         /// </summary>
+
         public ImportLas()
           : base("Reference LAS", "refLAS",
             "Reference a LAS file before filtering. Display LAS file properties.",
@@ -29,10 +30,19 @@ namespace SiteReader
         {
         }
 
+        //FIELDS
+        private float Value;
+
+        //properties
+        public void SetVal(float value)
+        {
+            Value = value;
+        }
+
         //This region overrides the typical component layout
         public override void CreateAttributes()
         {
-            m_attributes = new UIAttributes.BaseAttributes(this);
+            m_attributes = new UIAttributes.BaseAttributes(this, SetVal);
         }
 
         //global variables
@@ -121,7 +131,7 @@ namespace SiteReader
             (List<string> uiList, List<float> ptShifts, string epsgCode) = GetHeaderInfo(header);
 
             //output 
-            DA.SetData(0, outMsg);
+            DA.SetData(0, Value.ToString());
             DA.SetDataList(1, uiList);
             DA.SetData(2, pl);
 

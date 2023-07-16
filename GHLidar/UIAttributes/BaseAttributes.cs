@@ -19,9 +19,16 @@ namespace SiteReader.UIAttributes
 {
     public class BaseAttributes : GH_ComponentAttributes
     {
-        public BaseAttributes(GH_Component owner) : base(owner) { } //constructor
+        public BaseAttributes(GH_Component owner, Action<float> sliderValue) : base(owner)
+        {
+            ReturnSliderVal = sliderValue;
+        }
 
         //FIELDS ------------------------------------------------------------------
+
+        //return values
+        private readonly Action<float> ReturnSliderVal;
+
         //rectangles for layouts
         private RectangleF ButtonBounds;
         private RectangleF SecondCapsuleBounds;
@@ -97,6 +104,13 @@ namespace SiteReader.UIAttributes
             {
                 _handlePosX = SliderBounds.Left + _curHandleOffset;
             }
+
+            //return the slider value to the component remapped between 0 and 1
+            if (!_currentlySliding)
+            {
+                ReturnSliderVal((_curHandleOffset + _handleWidth / 2) / SliderBounds.Width);
+            }
+            
             
 
             HandleShape = new RectangleF(_handlePosX, _handlePosY, _handleWidth, _handleWidth);
@@ -212,9 +226,6 @@ namespace SiteReader.UIAttributes
                     Grasshopper.Instances.CursorServer.AttachCursor(sender, "GH_NumericSlider");
 
                     _currentlySliding = true;
-
-
-                    Owner.ExpireSolution(false);
                     return GH_ObjectResponse.Capture;
                 }
             }
@@ -243,9 +254,9 @@ namespace SiteReader.UIAttributes
                 {
                     _curHandleOffset = currentX - SliderBounds.Left - _handleWidth / 2;
                 }
-                Owner.OnSolutionExpired(true);
+                Owner.ExpireSolution(true);
 
-                return GH_ObjectResponse.Ignore;
+                return GH_ObjectResponse.Handled;
             }
 
             return base.RespondToMouseMove(sender, e);
