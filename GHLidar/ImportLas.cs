@@ -31,18 +31,27 @@ namespace SiteReader
         }
 
         //FIELDS
-        private float Value;
+        private float Value = 0f;
+        private bool PreviewCloud = false;
 
         //properties
+
+
+        // Methods to pass values between component UI and component
         public void SetVal(float value)
         {
             Value = value;
         }
 
+        public void SetPreview(bool preview)
+        {
+            PreviewCloud = preview;
+        }
+
         //This region overrides the typical component layout
         public override void CreateAttributes()
         {
-            m_attributes = new UIAttributes.BaseAttributes(this, SetVal);
+            m_attributes = new UIAttributes.BaseAttributes(this, SetVal, SetPreview);
         }
 
         //global variables
@@ -78,8 +87,9 @@ namespace SiteReader
             // Use the pManager object to register your output parameters.
             // Output parameters do not have default values, but they too must have the correct access type.
             pManager.AddTextParameter("Output", "out", "Component messages. Use to check for errors.", GH_ParamAccess.item);
-            pManager.AddTextParameter("LAS Header", "header", "Useful information about the LAS file", GH_ParamAccess.list);
-            pManager.AddGenericParameter("test", "test", "test", GH_ParamAccess.item);
+            //pManager.AddTextParameter("LAS Header", "header", "Useful information about the LAS file", GH_ParamAccess.list);
+            //pManager.AddGenericParameter("test", "test", "test", GH_ParamAccess.item);
+            pManager.AddBooleanParameter("prev", "prev", "prev", GH_ParamAccess.item);
 
             // Sometimes you want to hide a specific parameter from the Rhino preview.
             // You can use the HideParameter() method as a quick way:
@@ -117,7 +127,7 @@ namespace SiteReader
                 DA.SetData(0, outMsg);
                 return;
             }
-
+            /*
             iVal = true;
             List<object> pipe = new List<object>();
             pipe.Add(testPath);
@@ -129,14 +139,15 @@ namespace SiteReader
             string header = pl.Metadata;
 
             (List<string> uiList, List<float> ptShifts, string epsgCode) = GetHeaderInfo(header);
-
+            */
             //output 
             DA.SetData(0, Value.ToString());
-            DA.SetDataList(1, uiList);
-            DA.SetData(2, pl);
+           // DA.SetDataList(1, uiList);
+           // DA.SetData(2, pl);
+            DA.SetData(1, PreviewCloud);
 
         }
-
+        
         bool GetFileExt(string path)
         {
             string fileExt = System.IO.Path.GetExtension(path);
@@ -148,7 +159,7 @@ namespace SiteReader
             return false;
         }
 
-        
+        /*
         (List<string>, List<float>, string) GetHeaderInfo(string header)
         {
             //the header values to include
@@ -209,7 +220,7 @@ namespace SiteReader
             }
             return null;
         }
-        
+        */
 
 
         /// <summary>

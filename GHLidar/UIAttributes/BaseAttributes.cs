@@ -19,15 +19,19 @@ namespace SiteReader.UIAttributes
 {
     public class BaseAttributes : GH_ComponentAttributes
     {
-        public BaseAttributes(GH_Component owner, Action<float> sliderValue) : base(owner)
+
+        // note to self: in C# use Action when you return void, and Func when you return value(s)
+        public BaseAttributes(GH_Component owner, Action<float> sliderValue, Action<bool> previewCld) : base(owner)
         {
             ReturnSliderVal = sliderValue;
+            PreviewCld = previewCld;
         }
 
         //FIELDS ------------------------------------------------------------------
 
         //return values
         private readonly Action<float> ReturnSliderVal;
+        private readonly Action<bool> PreviewCld;
 
         //rectangles for layouts
         private RectangleF ButtonBounds;
@@ -36,7 +40,7 @@ namespace SiteReader.UIAttributes
         private RectangleF HandleShape;
 
         //preview the Cloud?
-        private bool PreviewCloud = false;
+        private bool _previewCloud = false;
         private string buttonText = "false";
 
         //field for slider handle position
@@ -104,15 +108,8 @@ namespace SiteReader.UIAttributes
             {
                 _handlePosX = SliderBounds.Left + _curHandleOffset;
             }
-
-            //return the slider value to the component remapped between 0 and 1
-            if (!_currentlySliding)
-            {
-                ReturnSliderVal((_curHandleOffset + _handleWidth / 2) / SliderBounds.Width);
-            }
             
             
-
             HandleShape = new RectangleF(_handlePosX, _handlePosY, _handleWidth, _handleWidth);
 
 
@@ -197,6 +194,10 @@ namespace SiteReader.UIAttributes
 
         }
 
+        /* See David Rutten's explanation of GH_ObjectResponse
+         * https://discourse.mcneel.com/t/why-i-cannot-move-a-custom-component/72959/4
+         */
+
         //handling double clicks
         public override GH_ObjectResponse RespondToMouseDoubleClick(GH_Canvas sender, GH_CanvasMouseEvent e)
         {
@@ -205,9 +206,10 @@ namespace SiteReader.UIAttributes
                 if (ButtonBounds.Contains(e.CanvasLocation))
                 {
                     Owner.RecordUndoEvent("SiteReader button clicked");
-                    PreviewCloud = PreviewCloud == false;
-                    buttonText = PreviewCloud.ToString();
-                    Owner.OnDisplayExpired(true);
+                    _previewCloud = _previewCloud == false;
+                    PreviewCld(_previewCloud); //return the value to the component
+                    buttonText = _previewCloud.ToString();
+                    Owner.ExpireSolution(true);
                     return GH_ObjectResponse.Handled;
                 }
             }
@@ -218,7 +220,7 @@ namespace SiteReader.UIAttributes
         //handling slider
         public override GH_ObjectResponse RespondToMouseDown(GH_Canvas sender, GH_CanvasMouseEvent e)
         {
-            if (e.Button == MouseButtons.Left && !PreviewCloud)
+            if (e.Button == MouseButtons.Left && !_previewCloud)
             {
                 if (HandleShape.Contains(e.CanvasLocation))
                 {
@@ -226,6 +228,7 @@ namespace SiteReader.UIAttributes
                     Grasshopper.Instances.CursorServer.AttachCursor(sender, "GH_NumericSlider");
 
                     _currentlySliding = true;
+                    Owner.ExpireSolution(true);
                     return GH_ObjectResponse.Capture;
                 }
             }
@@ -256,7 +259,7 @@ namespace SiteReader.UIAttributes
                 }
                 Owner.ExpireSolution(true);
 
-                return GH_ObjectResponse.Handled;
+                return GH_ObjectResponse.Ignore;
             }
 
             return base.RespondToMouseMove(sender, e);
@@ -271,9 +274,11 @@ namespace SiteReader.UIAttributes
                 //snap the handle to a notch
                 var currentX = e.CanvasX - SliderBounds.Left;
                 _curHandleOffset = _handleOffsets.Aggregate((x, y) => Math.Abs(x - currentX) < Math.Abs(y - currentX) ? x : y);
-
                 _currentlySliding = false;
-                Owner.ExpireSolution(true);
+
+                ReturnSliderVal((_curHandleOffset + _handleWidth / 2) / SliderBounds.Width); // return the final value
+                Owner.ExpireSolution(true); // refresh the component after updating value
+
                 return GH_ObjectResponse.Release;
 
             }
