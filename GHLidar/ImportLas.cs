@@ -127,7 +127,7 @@ namespace SiteReader
                 DA.SetData(0, outMsg);
                 return;
             }
-            /*
+            
             iVal = true;
             List<object> pipe = new List<object>();
             pipe.Add(testPath);
@@ -139,7 +139,7 @@ namespace SiteReader
             string header = pl.Metadata;
 
             (List<string> uiList, List<float> ptShifts, string epsgCode) = GetHeaderInfo(header);
-            */
+            
             //output 
             DA.SetData(0, Value.ToString());
            // DA.SetDataList(1, uiList);
@@ -159,7 +159,7 @@ namespace SiteReader
             return false;
         }
 
-        /*
+        
         (List<string>, List<float>, string) GetHeaderInfo(string header)
         {
             //the header values to include
@@ -220,7 +220,6 @@ namespace SiteReader
             }
             return null;
         }
-        */
 
 
         /// <summary>

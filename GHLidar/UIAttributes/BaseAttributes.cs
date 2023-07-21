@@ -21,29 +21,34 @@ namespace SiteReader.UIAttributes
     {
 
         // note to self: in C# use Action when you return void, and Func when you return value(s)
+        /* documentation on base:
+         https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/keywords/base
+         */
+
         public BaseAttributes(GH_Component owner, Action<float> sliderValue, Action<bool> previewCld) : base(owner)
         {
-            ReturnSliderVal = sliderValue;
-            PreviewCld = previewCld;
+            _returnSliderVal = sliderValue;
+            _previewCld = previewCld;
         }
 
         //FIELDS ------------------------------------------------------------------
 
         //return values
-        private readonly Action<float> ReturnSliderVal;
-        private readonly Action<bool> PreviewCld;
+        private readonly Action<float> _returnSliderVal;
+        private readonly Action<bool> _previewCld;
 
         //rectangles for layouts
-        private RectangleF ButtonBounds;
-        private RectangleF SecondCapsuleBounds;
-        private RectangleF SliderBounds;
-        private RectangleF HandleShape;
+        private RectangleF _buttonBounds;
+        private RectangleF _secondCapsuleBounds;
+        private RectangleF _sliderBounds;
+        private RectangleF _handleShape;
+        private PointF _handleNum;
 
         //preview the Cloud?
         private bool _previewCloud = false;
-        private string buttonText = "false";
+        private string _buttonText = "false";
 
-        //field for slider handle position
+        //field for slider handle position and preview number
         private bool _slid = false;
         private bool _currentlySliding = false;
         private float _handlePosX;
@@ -51,6 +56,7 @@ namespace SiteReader.UIAttributes
         private float _curHandleOffset = 0;
         private List<float> _handleOffsets;
         private float _handleWidth = 8;
+        private float _handleNumValue = 0;
 
 
         protected override void Layout()
@@ -67,9 +73,13 @@ namespace SiteReader.UIAttributes
             var height = componentRec.Height;
 
             //useful layout variables like spacers, etc.
-            int horizSpacer = 10;
-            int sideSpacer = 2;
-            int extraHeight = 200;
+            /* docs on constants
+             https://learn.microsoft.com/en-us/dotnet/csharp/programming-guide/classes-and-structs/constants
+             */
+
+            const int horizSpacer = 10;
+            const int sideSpacer = 2;
+            const int extraHeight = 200;
 
             //here we can modify the bounds
             componentRec.Height += extraHeight; // for example
@@ -78,15 +88,15 @@ namespace SiteReader.UIAttributes
             Bounds = componentRec;
 
             //here we can add extra stuff to the layout-------------------------------------------
-            SecondCapsuleBounds = new RectangleF(left, bottom, width, extraHeight);
+            _secondCapsuleBounds = new RectangleF(left, bottom, width, extraHeight);
 
-            SliderBounds = new RectangleF(left, bottom + horizSpacer, width, 20);
-            SliderBounds.Inflate(-sideSpacer*4, 0);
+            _sliderBounds = new RectangleF(left, bottom + horizSpacer, width, 20);
+            _sliderBounds.Inflate(-sideSpacer*4, 0);
 
 
             //slider handle and code to move it properly
              _handleWidth = 8;
-            _handlePosY = SliderBounds.Height / 2 - _handleWidth / 2 + SliderBounds.Top;
+            _handlePosY = _sliderBounds.Height / 2 - _handleWidth / 2 + _sliderBounds.Top;
 
 
             //getting the handle snap locations
@@ -94,28 +104,30 @@ namespace SiteReader.UIAttributes
             for (int i = 0; i < 11; i++)
             {
                 var iFl = (float)i;
-                var offsetX = iFl * (SliderBounds.Width / 10) - _handleWidth/2;
+                var offsetX = iFl * (_sliderBounds.Width / 10) - _handleWidth/2;
                 _handleOffsets.Add(offsetX);
             }
 
             //getting current position
             if (!_slid)
             {
-                _handlePosX = SliderBounds.Left - _handleWidth / 2;
+                _handlePosX = _sliderBounds.Left - _handleWidth / 2;
             }
             
             else
             {
-                _handlePosX = SliderBounds.Left + _curHandleOffset;
+                _handlePosX = _sliderBounds.Left + _curHandleOffset;
             }
             
             
-            HandleShape = new RectangleF(_handlePosX, _handlePosY, _handleWidth, _handleWidth);
+            _handleShape = new RectangleF(_handlePosX, _handlePosY, _handleWidth, _handleWidth);
+            _handleNum = new PointF(_handlePosX + _handleWidth / 2, _handlePosY + _handleWidth + 5);
+            
 
 
             //the button
-            ButtonBounds = new RectangleF(left, bottom + horizSpacer*2 + SliderBounds.Height, width, 20);
-            ButtonBounds.Inflate(-sideSpacer, 0);
+            _buttonBounds = new RectangleF(left, bottom + horizSpacer*2 + _sliderBounds.Height, width, 20);
+            _buttonBounds.Inflate(-sideSpacer, 0);
 
 
         }
@@ -129,7 +141,7 @@ namespace SiteReader.UIAttributes
             {
                 //declare the pens / brushes / pallets we will need to draw the custom objects - defaults for blank / message levels
                 Pen outLine = CompStyles.BlankOutline;
-                GH_Palette pallete = GH_Palette.Normal;
+                GH_Palette palette = GH_Palette.Normal;
 
                 //use a switch statement to retrieve the proper pens / brushes from our CompColors class
                 switch (Owner.RuntimeMessageLevel)
@@ -137,13 +149,13 @@ namespace SiteReader.UIAttributes
                     case GH_RuntimeMessageLevel.Warning:
                         // assign warning values
                         outLine = CompStyles.WarnOutline;
-                        pallete = GH_Palette.Warning;
+                        palette = GH_Palette.Warning;
                         break;
 
                     case GH_RuntimeMessageLevel.Error:
                         // assign warning values
                         outLine = CompStyles.ErrorOutline;
-                        pallete = GH_Palette.Error;
+                        palette = GH_Palette.Error;
                         break;
                 }
 
@@ -151,28 +163,28 @@ namespace SiteReader.UIAttributes
                 //render custom elements----------------------------------------------------------
 
                 //secondary capsule
-                GH_Capsule secondCap = GH_Capsule.CreateCapsule(SecondCapsuleBounds, pallete);
+                GH_Capsule secondCap = GH_Capsule.CreateCapsule(_secondCapsuleBounds, palette);
                 secondCap.Render(graphics, Selected, Owner.Locked, false);
                 secondCap.Dispose();
 
                 //slider line
-                var sliderY = SliderBounds.Top + SliderBounds.Height / 2;
-                graphics.DrawLine(outLine, SliderBounds.Left, sliderY, SliderBounds.Right, sliderY);
+                var sliderY = _sliderBounds.Top + _sliderBounds.Height / 2;
+                graphics.DrawLine(outLine, _sliderBounds.Left, sliderY, _sliderBounds.Right, sliderY);
 
                 //slider line vertical ticks
                 int count = 0;
                 foreach (var offset in _handleOffsets)
                 {
-                    var tickX = offset + SliderBounds.Left + _handleWidth / 2;
+                    var tickX = offset + _sliderBounds.Left + _handleWidth / 2;
 
                     float top;
                     if (count % 5 == 0)
                     {
-                        top = SliderBounds.Top + 2;
+                        top = _sliderBounds.Top + 2;
                     }
                     else
                     {
-                        top = SliderBounds.Top + 5;
+                        top = _sliderBounds.Top + 5;
                     }
 
                     graphics.DrawLine(outLine, tickX, sliderY, tickX, top);
@@ -181,12 +193,21 @@ namespace SiteReader.UIAttributes
                 }
 
                 //slider handle
-                graphics.FillEllipse(CompStyles.HandleFill, HandleShape);
-                graphics.DrawEllipse(outLine, HandleShape);
+                graphics.FillEllipse(CompStyles.HandleFill, _handleShape);
+                graphics.DrawEllipse(outLine, _handleShape);
+
+
+                //slider number value
+                Font font = GH_FontServer.Small;
+                // adjust fontsize to high resolution displays
+                font = new Font(font.FontFamily, font.Size / GH_GraphicsUtil.UiScale, FontStyle.Regular);
+
+
+                graphics.DrawString(_handleNumValue.ToString(), font, Brushes.Black, _handleNum, GH_TextRenderingConstants.CenterCenter);
 
 
                 //preview cloud button
-                GH_Capsule button = GH_Capsule.CreateTextCapsule(ButtonBounds, ButtonBounds, GH_Palette.Black, buttonText);
+                GH_Capsule button = GH_Capsule.CreateTextCapsule(_buttonBounds, _buttonBounds, GH_Palette.Black, _buttonText);
                 button.Render(graphics, Selected,Owner.Locked,false);
                 button.Dispose();
 
@@ -201,14 +222,14 @@ namespace SiteReader.UIAttributes
         //handling double clicks
         public override GH_ObjectResponse RespondToMouseDoubleClick(GH_Canvas sender, GH_CanvasMouseEvent e)
         {
-            if (e.Button == MouseButtons.Left /*&& Owner.RuntimeMessageLevel == GH_RuntimeMessageLevel.Blank*/) 
+            if (e.Button == MouseButtons.Left && Owner.RuntimeMessageLevel == GH_RuntimeMessageLevel.Blank) 
             {
-                if (ButtonBounds.Contains(e.CanvasLocation))
+                if (_buttonBounds.Contains(e.CanvasLocation))
                 {
                     Owner.RecordUndoEvent("SiteReader button clicked");
                     _previewCloud = _previewCloud == false;
-                    PreviewCld(_previewCloud); //return the value to the component
-                    buttonText = _previewCloud.ToString();
+                    _previewCld(_previewCloud); //return the value to the component
+                    _buttonText = _previewCloud.ToString();
                     Owner.ExpireSolution(true);
                     return GH_ObjectResponse.Handled;
                 }
@@ -220,15 +241,14 @@ namespace SiteReader.UIAttributes
         //handling slider
         public override GH_ObjectResponse RespondToMouseDown(GH_Canvas sender, GH_CanvasMouseEvent e)
         {
-            if (e.Button == MouseButtons.Left && !_previewCloud)
+            if (e.Button == MouseButtons.Left && !_previewCloud && Owner.RuntimeMessageLevel == GH_RuntimeMessageLevel.Blank)
             {
-                if (HandleShape.Contains(e.CanvasLocation))
+                if (_handleShape.Contains(e.CanvasLocation))
                 {
                     //use the drag cursor
                     Grasshopper.Instances.CursorServer.AttachCursor(sender, "GH_NumericSlider");
 
                     _currentlySliding = true;
-                    Owner.ExpireSolution(true);
                     return GH_ObjectResponse.Capture;
                 }
             }
@@ -245,19 +265,29 @@ namespace SiteReader.UIAttributes
                 
                 var currentX = e.CanvasX;
                 //slide the handle around within limits
-                if (currentX < SliderBounds.Left)
+                if (currentX < _sliderBounds.Left)
                 {
                     _curHandleOffset = -_handleWidth / 2;
                 } 
-                else if (currentX > SliderBounds.Right)
+                else if (currentX > _sliderBounds.Right)
                 {
-                    _curHandleOffset = SliderBounds.Width - _handleWidth / 2;
+                    _curHandleOffset = _sliderBounds.Width - _handleWidth / 2;
                 }
                 else
                 {
-                    _curHandleOffset = currentX - SliderBounds.Left - _handleWidth / 2;
+                    _curHandleOffset = currentX - _sliderBounds.Left - _handleWidth / 2;
                 }
-                Owner.ExpireSolution(true);
+
+                //update the number below the handle to snap to the nearest whole value
+                _handleNumValue = RoundSliderValue(currentX, false);
+                
+
+
+                /* note sure why I can't access Owner.ExpireLayout() but the below works to refresh the display while NOT expiring the solution
+                 https://discourse.mcneel.com/t/grasshopper-button-should-i-expire-solution/117368
+                 */
+                base.ExpireLayout();
+                sender.Refresh();
 
                 return GH_ObjectResponse.Ignore;
             }
@@ -272,17 +302,35 @@ namespace SiteReader.UIAttributes
             {
 
                 //snap the handle to a notch
-                var currentX = e.CanvasX - SliderBounds.Left;
-                _curHandleOffset = _handleOffsets.Aggregate((x, y) => Math.Abs(x - currentX) < Math.Abs(y - currentX) ? x : y);
+                var currentX = e.CanvasX - _sliderBounds.Left;
+                float roundedX = RoundSliderValue(currentX, true);
+                _returnSliderVal(roundedX); // return the final value
+
+                // again, we don't want to refresh the solution until the display button is clicked
+                base.ExpireLayout();
+                sender.Refresh();
+
                 _currentlySliding = false;
-
-                ReturnSliderVal((_curHandleOffset + _handleWidth / 2) / SliderBounds.Width); // return the final value
-                Owner.ExpireSolution(true); // refresh the component after updating value
-
                 return GH_ObjectResponse.Release;
 
             }
             return base.RespondToMouseUp(sender, e);
+        }
+
+
+        //utility methods ----------------------------------------------------------------------------------------
+        float RoundSliderValue(float currentX, bool updateSlider)
+        {
+
+            float roundedOffset = _handleOffsets.Aggregate((x, y) => Math.Abs(x - currentX) < Math.Abs(y - currentX) ? x : y);
+
+            if (updateSlider)
+            {
+                _curHandleOffset = roundedOffset; //if true, the slider will follow the rounding. If not, returns rounded value for number preview
+            }
+            
+            float rounded = (roundedOffset + _handleWidth / 2) / _sliderBounds.Width;
+            return rounded;
         }
     }
 
