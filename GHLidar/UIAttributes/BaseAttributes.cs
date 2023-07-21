@@ -53,8 +53,13 @@ namespace SiteReader.UIAttributes
         private bool _currentlySliding = false;
         private float _handlePosX;
         private float _handlePosY;
+
+
         private float _curHandleOffset = 0;
         private List<float> _handleOffsets;
+        private float _cloudDensity = 0;
+
+
         private float _handleWidth = 8;
         private float _handleNumValue = 0;
 
@@ -203,7 +208,7 @@ namespace SiteReader.UIAttributes
                 font = new Font(font.FontFamily, font.Size / GH_GraphicsUtil.UiScale, FontStyle.Regular);
 
 
-                graphics.DrawString(_handleNumValue.ToString(), font, Brushes.Black, _handleNum, GH_TextRenderingConstants.CenterCenter);
+                graphics.DrawString(_cloudDensity.ToString(), font, Brushes.Black, _handleNum, GH_TextRenderingConstants.CenterCenter);
 
 
                 //preview cloud button
@@ -247,7 +252,6 @@ namespace SiteReader.UIAttributes
                 {
                     //use the drag cursor
                     Grasshopper.Instances.CursorServer.AttachCursor(sender, "GH_NumericSlider");
-
                     _currentlySliding = true;
                     return GH_ObjectResponse.Capture;
                 }
@@ -264,6 +268,9 @@ namespace SiteReader.UIAttributes
                 _slid = true;
                 
                 var currentX = e.CanvasX;
+
+                /* NOT NEEDED FOR SNAPPING SLIDER - USE FOR SLIDING SLIDER
+
                 //slide the handle around within limits
                 if (currentX < _sliderBounds.Left)
                 {
@@ -277,10 +284,14 @@ namespace SiteReader.UIAttributes
                 {
                     _curHandleOffset = currentX - _sliderBounds.Left - _handleWidth / 2;
                 }
+                */
 
-                //update the number below the handle to snap to the nearest whole value
-                _handleNumValue = RoundSliderValue(currentX, false);
-                
+                //update the number below the handle to snap to the nearest whole value + snap the slider
+                var currentVal = currentX - _sliderBounds.Left;
+                _curHandleOffset =
+                    _handleOffsets.Aggregate((x, y) => Math.Abs(x - currentVal) < Math.Abs(y - currentVal) ? x : y);
+                _cloudDensity = (_curHandleOffset + _handleWidth / 2) / _sliderBounds.Width;
+
 
 
                 /* note sure why I can't access Owner.ExpireLayout() but the below works to refresh the display while NOT expiring the solution
@@ -300,11 +311,7 @@ namespace SiteReader.UIAttributes
 
             if (e.Button == MouseButtons.Left && _currentlySliding)
             {
-
-                //snap the handle to a notch
-                var currentX = e.CanvasX - _sliderBounds.Left;
-                float roundedX = RoundSliderValue(currentX, true);
-                _returnSliderVal(roundedX); // return the final value
+                _returnSliderVal(_cloudDensity); // return the final value
 
                 // again, we don't want to refresh the solution until the display button is clicked
                 base.ExpireLayout();
