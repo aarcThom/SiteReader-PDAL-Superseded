@@ -31,8 +31,9 @@ namespace SiteReader
         }
 
         //FIELDS
-        private float Value = 0f;
-        private bool PreviewCloud = false;
+        private float _cloudDensity = 0f;
+        private bool _previewCloud = false;
+        private string _prevPath = "";
 
         //properties
 
@@ -40,12 +41,12 @@ namespace SiteReader
         // Methods to pass values between component UI and component
         public void SetVal(float value)
         {
-            Value = value;
+            _cloudDensity = value;
         }
 
         public void SetPreview(bool preview)
         {
-            PreviewCloud = preview;
+            _previewCloud = preview;
         }
 
         //This region overrides the typical component layout
@@ -109,6 +110,7 @@ namespace SiteReader
             //output variables
             string outMsg = "";
 
+
             // Is input empty?
             if (!DA.GetData(0, ref testPath)) return;
 
@@ -127,24 +129,33 @@ namespace SiteReader
                 DA.SetData(0, outMsg);
                 return;
             }
+
+            // Only refresh the PDAL pipeline if new input is detected
+            if (_prevPath != testPath)
+            {
+                iVal = true;
+                List<object> pipe = new List<object>();
+                pipe.Add(testPath);
+                string json = JsonConvert.SerializeObject(pipe.ToArray());
+
+                Pipeline pl = new Pipeline(json);
+
+                long count = pl.Execute();
+                string header = pl.Metadata;
+
+                (List<string> uiList, List<float> ptShifts, string epsgCode) = GetHeaderInfo(header);
+
+
+                _prevPath = testPath;
+            }
             
-            iVal = true;
-            List<object> pipe = new List<object>();
-            pipe.Add(testPath);
-            string json = JsonConvert.SerializeObject(pipe.ToArray());
-
-            Pipeline pl = new Pipeline(json);
-
-            long count = pl.Execute();
-            string header = pl.Metadata;
-
-            (List<string> uiList, List<float> ptShifts, string epsgCode) = GetHeaderInfo(header);
+            
             
             //output 
-            DA.SetData(0, Value.ToString());
+            DA.SetData(0, _cloudDensity.ToString());
            // DA.SetDataList(1, uiList);
            // DA.SetData(2, pl);
-            DA.SetData(1, PreviewCloud);
+            DA.SetData(1, _previewCloud);
 
         }
         
@@ -166,8 +177,8 @@ namespace SiteReader
             List<string> headerList = new List<string> { "minx", "miny", "minz", "maxx", "maxy", "maxz", "count"};
 
             //formatted values to display
-            List<string> displayList = new List<string> { "Projection: ","Min. X Value: ", "Min. Y Value: ", "Min. Z Value: ", 
-                                                                      "Max. X Value: ", "Max. Y Value: ", "Max. Z Value: ", "Point Count: " };
+            List<string> displayList = new List<string> { "Projection: ","Min. X _cloudDensity: ", "Min. Y _cloudDensity: ", "Min. Z _cloudDensity: ", 
+                                                                      "Max. X _cloudDensity: ", "Max. Y _cloudDensity: ", "Max. Z _cloudDensity: ", "Point Count: " };
             //list of point cloud shifts
             List<float> shiftList = new List<float> { 0,0,0,0,0,0 };
 
