@@ -53,15 +53,12 @@ namespace SiteReader.UIAttributes
         private bool _currentlySliding = false;
         private float _handlePosX;
         private float _handlePosY;
+        private float _handleWidth = 8;
 
 
         private float _curHandleOffset = 0;
         private List<float> _handleOffsets;
         private float _cloudDensity = 0;
-
-
-        private float _handleWidth = 8;
-        private float _handleNumValue = 0;
 
 
         protected override void Layout()
@@ -322,22 +319,6 @@ namespace SiteReader.UIAttributes
 
             }
             return base.RespondToMouseUp(sender, e);
-        }
-
-
-        //utility methods ----------------------------------------------------------------------------------------
-        float RoundSliderValue(float currentX, bool updateSlider)
-        {
-
-            float roundedOffset = _handleOffsets.Aggregate((x, y) => Math.Abs(x - currentX) < Math.Abs(y - currentX) ? x : y);
-
-            if (updateSlider)
-            {
-                _curHandleOffset = roundedOffset; //if true, the slider will follow the rounding. If not, returns rounded value for number preview
-            }
-            
-            float rounded = (roundedOffset + _handleWidth / 2) / _sliderBounds.Width;
-            return rounded;
         }
     }
 

@@ -35,6 +35,8 @@ namespace SiteReader
         private bool _previewCloud = false;
         private string _prevPath = "";
 
+        private List<string> _uiList = new List<string>() { "undetected" };
+
         //properties
 
 
@@ -88,9 +90,7 @@ namespace SiteReader
             // Use the pManager object to register your output parameters.
             // Output parameters do not have default values, but they too must have the correct access type.
             pManager.AddTextParameter("Output", "out", "Component messages. Use to check for errors.", GH_ParamAccess.item);
-            //pManager.AddTextParameter("LAS Header", "header", "Useful information about the LAS file", GH_ParamAccess.list);
-            //pManager.AddGenericParameter("test", "test", "test", GH_ParamAccess.item);
-            pManager.AddBooleanParameter("prev", "prev", "prev", GH_ParamAccess.item);
+            pManager.AddTextParameter("LAS Header", "header", "Useful information about the LAS file", GH_ParamAccess.list);
 
             // Sometimes you want to hide a specific parameter from the Rhino preview.
             // You can use the HideParameter() method as a quick way:
@@ -105,17 +105,20 @@ namespace SiteReader
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             // Input variables
-            string testPath = String.Empty;
+            string currentPath = String.Empty;
 
             //output variables
             string outMsg = "";
+            List<float> ptShifts;
+            string epsgCode;
+
 
 
             // Is input empty?
-            if (!DA.GetData(0, ref testPath)) return;
+            if (!DA.GetData(0, ref currentPath)) return;
 
             // Test if file exists
-            if (!File.Exists(testPath))
+            if (!File.Exists(currentPath))
             {
                 outMsg = "Cannot find file.";
                 DA.SetData(0, outMsg);
@@ -123,7 +126,7 @@ namespace SiteReader
             }
 
             // Test if file is .las or .laz
-            if (!GetFileExt(testPath))
+            if (!GetFileExt(currentPath))
             {
                 outMsg = "Invalid file type";
                 DA.SetData(0, outMsg);
@@ -131,11 +134,11 @@ namespace SiteReader
             }
 
             // Only refresh the PDAL pipeline if new input is detected
-            if (_prevPath != testPath)
+            if (_prevPath != currentPath)
             {
                 iVal = true;
                 List<object> pipe = new List<object>();
-                pipe.Add(testPath);
+                pipe.Add(currentPath);
                 string json = JsonConvert.SerializeObject(pipe.ToArray());
 
                 Pipeline pl = new Pipeline(json);
@@ -143,25 +146,22 @@ namespace SiteReader
                 long count = pl.Execute();
                 string header = pl.Metadata;
 
-                (List<string> uiList, List<float> ptShifts, string epsgCode) = GetHeaderInfo(header);
+                (_uiList, ptShifts, epsgCode) = GetHeaderInfo(header);
 
-
-                _prevPath = testPath;
+                _prevPath = currentPath;
             }
             
             
             
             //output 
             DA.SetData(0, _cloudDensity.ToString());
-           // DA.SetDataList(1, uiList);
-           // DA.SetData(2, pl);
-            DA.SetData(1, _previewCloud);
+            DA.SetDataList(1, _uiList);
 
         }
         
         bool GetFileExt(string path)
         {
-            string fileExt = System.IO.Path.GetExtension(path);
+            string fileExt = Path.GetExtension(path);
 
             if (fileExt == ".las" || fileExt == ".laz")
             {
