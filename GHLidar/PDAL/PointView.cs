@@ -33,11 +33,13 @@ using System.Text;
 using g3;
 using System.Collections.Generic;
 using System.Linq;
+using System.Drawing;
 
 namespace SiteReader.PDAL
 {
     public class PointView : IDisposable
     {
+
         private const string PDALC_LIBRARY = @"pdalLib\bin\pdalc.dll";
         private const int BUFFER_SIZE = 1024;
 
@@ -224,15 +226,15 @@ namespace SiteReader.PDAL
             return clonedView;
         }
 
-        public BpcData GetBakedPointCloud()
+        public PtCloudFull GetPtCloudInfo()
         {
-            BpcData pc;
+            PtCloudFull pc;
             ulong size;
             PointLayout layout = Layout;
             DimTypeList typelist = layout.Types;
             byte[] data = GetAllPackedPoints(typelist, out size);
-            List<Vector3d> positions = new List<Vector3d>();
-            List<Vector3f> colors = new List<Vector3f>();
+            List<Rhino.Geometry.Point3d> positions = new List<Rhino.Geometry.Point3d>();
+            List<Color> colors = new List<Color>();
 
             uint pointSize = layout.PointSize;
             Dictionary<string, int> indexs = new Dictionary<string, int>();
@@ -254,15 +256,16 @@ namespace SiteReader.PDAL
 
             for (long i = 0; i < (long)size; i += pointSize)
             {
-                positions.Add(new Vector3d(parseDouble(data, types["X"], (int)(i + indexs["X"])),
+                positions.Add(new Rhino.Geometry.Point3d(parseDouble(data, types["X"], (int)(i + indexs["X"])),
                                             parseDouble(data, types["Y"], (int)(i + indexs["Y"])),
-                                            parseDouble(data, types["Z"], (int)(i + indexs["Z"]))
-                              ));
+                                            parseDouble(data, types["Z"], (int)(i + indexs["Z"]))));
+
                 if (hasColor)
-                    colors.Add(new Vector3f((float)parseColor(data, types["Red"], (int)(i + indexs["Red"])),
-                                            (float)parseColor(data, types["Green"], (int)(i + indexs["Green"])),
-                                            (float)parseColor(data, types["Blue"], (int)(i + indexs["Blue"]))
-                            ));
+                {
+                    colors.Add(Color.FromArgb(255, (int)parseColor(data, types["Red"], (int)(i + indexs["Red"])),
+                        (int)parseColor(data, types["Green"], (int)(i + indexs["Green"])),
+                        (int)parseColor(data, types["Blue"], (int)(i + indexs["Blue"]))));
+                }
             }
 
             pc.positions = positions;
@@ -271,6 +274,7 @@ namespace SiteReader.PDAL
             return pc;
         }
 
+        /*
         public DMesh3 getMesh()
         {
             BpcData pc = GetBakedPointCloud();
@@ -303,6 +307,7 @@ namespace SiteReader.PDAL
             }
             return dmesh;
         }
+        */
 
         private double parseDouble(byte[] buffer, string interpretationName, int position)
         {
@@ -363,6 +368,13 @@ namespace SiteReader.PDAL
     {
         public IEnumerable<Vector3d> positions;
         public IEnumerable<Vector3f> colors;
+        public int size;
+    }
+
+    public struct PtCloudFull
+    {
+        public IEnumerable<Rhino.Geometry.Point3d> positions;
+        public IEnumerable<Color> colors;
         public int size;
     }
 }

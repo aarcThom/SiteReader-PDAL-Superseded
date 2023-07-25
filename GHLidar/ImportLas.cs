@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using SiteReader.PDAL;
 using Newtonsoft.Json.Linq;
 using System.Text.RegularExpressions;
+using g3;
 
 namespace SiteReader
 {
@@ -34,6 +35,8 @@ namespace SiteReader
         private float _cloudDensity = 0f;
         private bool _previewCloud = false;
         private string _prevPath = "";
+
+        PointCloud ptCloud;
 
         private List<string> _uiList = new List<string>() { "undetected" };
 
@@ -63,6 +66,17 @@ namespace SiteReader
         {
             get { return iVal; }
             set { iVal = value; }
+        }
+
+        //drawing the point cloud if preview is enabled
+        public override void DrawViewportWires(IGH_PreviewArgs args)
+        {
+            base.DrawViewportWires(args);
+
+            if (_previewCloud && ptCloud != null) 
+            {
+                args.Display.DrawPointCloud(ptCloud, 3);
+            }
         }
 
 
@@ -148,6 +162,10 @@ namespace SiteReader
 
                 (_uiList, ptShifts, epsgCode) = GetHeaderInfo(header);
 
+                //get the pointCLoud info
+                ptCloud = GetPointCLoud(pl);
+
+
                 _prevPath = currentPath;
             }
             
@@ -232,6 +250,24 @@ namespace SiteReader
             return null;
         }
 
+
+        PointCloud GetPointCLoud(Pipeline pl)
+        {
+            PtCloudFull ptCloudFull;
+
+            using (PointViewIterator views = pl.Views)
+            {
+                ptCloudFull = views.Next.GetPtCloudInfo();
+            }
+
+            Rhino.Geometry.PointCloud ptCloud = new Rhino.Geometry.PointCloud();
+
+            foreach(var ptLoc in ptCloudFull.positions)
+            {
+                ptCloud.Add(ptLoc);
+            }
+            return ptCloud;
+        }
 
         /// <summary>
         /// The Exposure property controls where in the panel a component icon 
