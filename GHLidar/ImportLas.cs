@@ -68,12 +68,6 @@ namespace SiteReader
             set { iVal = value; }
         }
 
-        //drawing the point cloud if preview is enabled
-        public override void DrawViewportWires(IGH_PreviewArgs args)
-        {
-            args.Display.DrawPointCloud(ptCloud, 3);
-        }
-
 
         /// <summary>
         /// Registers all the input parameters for this component.
@@ -100,7 +94,6 @@ namespace SiteReader
             // Output parameters do not have default values, but they too must have the correct access type.
             pManager.AddTextParameter("Output", "out", "Component messages. Use to check for errors.", GH_ParamAccess.item);
             pManager.AddTextParameter("LAS Header", "header", "Useful information about the LAS file", GH_ParamAccess.list);
-            pManager.AddPointParameter("test", "test", "test", GH_ParamAccess.list);
 
             // Sometimes you want to hide a specific parameter from the Rhino preview.
             // You can use the HideParameter() method as a quick way:
@@ -170,10 +163,40 @@ namespace SiteReader
             //output 
             DA.SetData(0, _cloudDensity.ToString());
             DA.SetDataList(1, _uiList);
-            DA.SetDataList(2, ptCloud.GetPoints());
 
         }
-        
+
+        //PREVIEW OVERRIDES --------------------------------------------------------
+        //drawing the point cloud if preview is enabled
+        public override void DrawViewportWires(IGH_PreviewArgs args)
+        {
+            if (_previewCloud)
+            {
+                args.Display.DrawPointCloud(ptCloud, 1);
+            }
+            
+        }
+
+        //Return a BoundingBox that contains all the geometry you are about to draw.
+        public override BoundingBox ClippingBox
+        {
+            get
+            {
+                if (ptCloud != null)
+                {
+                    return ptCloud.GetBoundingBox(true);
+                }
+                return base.ClippingBox;
+                
+            }
+        }
+
+        //need to override this to be previewable despite having no geo output
+        public override bool IsPreviewCapable => true;
+
+
+
+        //UTILITY METHODS --------------------------------------------------------------------
         bool GetFileExt(string path)
         {
             string fileExt = Path.GetExtension(path);
