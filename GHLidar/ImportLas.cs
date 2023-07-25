@@ -71,12 +71,7 @@ namespace SiteReader
         //drawing the point cloud if preview is enabled
         public override void DrawViewportWires(IGH_PreviewArgs args)
         {
-            base.DrawViewportWires(args);
-
-            if (_previewCloud && ptCloud != null) 
-            {
-                args.Display.DrawPointCloud(ptCloud, 3);
-            }
+            args.Display.DrawPointCloud(ptCloud, 3);
         }
 
 
@@ -105,6 +100,7 @@ namespace SiteReader
             // Output parameters do not have default values, but they too must have the correct access type.
             pManager.AddTextParameter("Output", "out", "Component messages. Use to check for errors.", GH_ParamAccess.item);
             pManager.AddTextParameter("LAS Header", "header", "Useful information about the LAS file", GH_ParamAccess.list);
+            pManager.AddPointParameter("test", "test", "test", GH_ParamAccess.list);
 
             // Sometimes you want to hide a specific parameter from the Rhino preview.
             // You can use the HideParameter() method as a quick way:
@@ -174,6 +170,7 @@ namespace SiteReader
             //output 
             DA.SetData(0, _cloudDensity.ToString());
             DA.SetDataList(1, _uiList);
+            DA.SetDataList(2, ptCloud.GetPoints());
 
         }
         
@@ -254,19 +251,20 @@ namespace SiteReader
         PointCloud GetPointCLoud(Pipeline pl)
         {
             PtCloudFull ptCloudFull;
+            Rhino.Geometry.PointCloud ptCloud = new Rhino.Geometry.PointCloud();
 
             using (PointViewIterator views = pl.Views)
             {
                 ptCloudFull = views.Next.GetPtCloudInfo();
+
+                foreach (var ptLoc in ptCloudFull.positions)
+                {
+                    ptCloud.Add(ptLoc);
+                }
+                return ptCloud;
             }
 
-            Rhino.Geometry.PointCloud ptCloud = new Rhino.Geometry.PointCloud();
-
-            foreach(var ptLoc in ptCloudFull.positions)
-            {
-                ptCloud.Add(ptLoc);
-            }
-            return ptCloud;
+           
         }
 
         /// <summary>
