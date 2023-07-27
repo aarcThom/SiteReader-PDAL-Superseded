@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing.Printing;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 using SiteReader.PDAL;
 using Newtonsoft.Json.Linq;
@@ -25,9 +26,9 @@ namespace SiteReader
         /// </summary>
 
         public ImportLas()
-          : base("Reference LAS", "refLAS",
-            "Reference a LAS file before filtering. Display LAS file properties.",
-            "Site Reader", "LAS")
+            : base("Reference LAS", "refLAS",
+                "Reference a LAS file before filtering. Display LAS file properties.",
+                "Site Reader", "LAS")
         {
         }
 
@@ -62,6 +63,7 @@ namespace SiteReader
 
         //global variables
         private bool iVal = false;
+
         public bool ImpValue
         {
             get { return iVal; }
@@ -92,8 +94,10 @@ namespace SiteReader
         {
             // Use the pManager object to register your output parameters.
             // Output parameters do not have default values, but they too must have the correct access type.
-            pManager.AddTextParameter("Output", "out", "Component messages. Use to check for errors.", GH_ParamAccess.item);
-            pManager.AddTextParameter("LAS Header", "header", "Useful information about the LAS file", GH_ParamAccess.list);
+            pManager.AddTextParameter("Output", "out", "Component messages. Use to check for errors.",
+                GH_ParamAccess.item);
+            pManager.AddTextParameter("LAS Header", "header", "Useful information about the LAS file",
+                GH_ParamAccess.list);
 
             // Sometimes you want to hide a specific parameter from the Rhino preview.
             // You can use the HideParameter() method as a quick way:
@@ -142,6 +146,14 @@ namespace SiteReader
                 iVal = true;
                 List<object> pipe = new List<object>();
                 pipe.Add(currentPath);
+
+                //need to break the cloud into tiles so we don't exceed the max capacity of ubyte[] in the pointviewclass
+                
+                pipe.Add(new
+                {
+                    type = "filters.splitter",
+                    length = 100000
+                });
                 string json = JsonConvert.SerializeObject(pipe.ToArray());
 
                 Pipeline pl = new Pipeline(json);
@@ -157,9 +169,9 @@ namespace SiteReader
 
                 _prevPath = currentPath;
             }
-            
-            
-            
+
+
+
             //output 
             DA.SetData(0, _cloudDensity.ToString());
             DA.SetDataList(1, _uiList);
@@ -174,7 +186,7 @@ namespace SiteReader
             {
                 args.Display.DrawPointCloud(ptCloud, 1);
             }
-            
+
         }
 
         //Return a BoundingBox that contains all the geometry you are about to draw.
@@ -186,8 +198,9 @@ namespace SiteReader
                 {
                     return ptCloud.GetBoundingBox(true);
                 }
+
                 return base.ClippingBox;
-                
+
             }
         }
 
@@ -205,20 +218,24 @@ namespace SiteReader
             {
                 return true;
             }
+
             return false;
         }
 
-        
+
         (List<string>, List<float>, string) GetHeaderInfo(string header)
         {
             //the header values to include
-            List<string> headerList = new List<string> { "minx", "miny", "minz", "maxx", "maxy", "maxz", "count"};
+            List<string> headerList = new List<string> { "minx", "miny", "minz", "maxx", "maxy", "maxz", "count" };
 
             //formatted values to display
-            List<string> displayList = new List<string> { "Projection: ","Min. X _cloudDensity: ", "Min. Y _cloudDensity: ", "Min. Z _cloudDensity: ", 
-                                                                      "Max. X _cloudDensity: ", "Max. Y _cloudDensity: ", "Max. Z _cloudDensity: ", "Point Count: " };
+            List<string> displayList = new List<string>
+            {
+                "Projection: ", "Min. X _cloudDensity: ", "Min. Y _cloudDensity: ", "Min. Z _cloudDensity: ",
+                "Max. X _cloudDensity: ", "Max. Y _cloudDensity: ", "Max. Z _cloudDensity: ", "Point Count: "
+            };
             //list of point cloud shifts
-            List<float> shiftList = new List<float> { 0,0,0,0,0,0 };
+            List<float> shiftList = new List<float> { 0, 0, 0, 0, 0, 0 };
 
             //project value
             string projection = null;
@@ -241,7 +258,7 @@ namespace SiteReader
                     {
                         displayList[0] += "Not provided in file. Check file source or website.";
                     }
-                } 
+                }
                 else if (headerList.Contains(pair.Key))
                 {
                     int index = headerList.IndexOf(pair.Key);
@@ -267,28 +284,49 @@ namespace SiteReader
             {
                 return match.Groups[1].Value;
             }
+
             return null;
         }
 
 
-        PointCloud GetPointCLoud(Pipeline pl)
+        PointCloud GetPointCLoud(Pipeline pl, List<PtCloudFull> allPts = null, PointView view = null)
         {
-            PtCloudFull ptCloudFull;
-            Rhino.Geometry.PointCloud ptCloud = new Rhino.Geometry.PointCloud();
 
-            using (PointViewIterator views = pl.Views)
+            PointCloud ptCloud = new PointCloud();
+
+            if (allPts == null)
             {
-                ptCloudFull = views.Next.GetPtCloudInfo();
+                allPts = new List<PtCloudFull>();
+                pl.Views.Reset();
+                view = pl.Views.Next;
+            }
 
-                foreach (var ptLoc in ptCloudFull.positions)
+            if (view != null)
+            {
+                PtCloudFull ptCloudFull = view.GetPtCloudInfo();
+
+                if (ptCloudFull.positions.Any())
+                {
+                    allPts.Add(ptCloudFull);
+                }
+
+                view = pl.Views.Next;
+
+                GetPointCLoud(pl, allPts, view);
+            }
+
+            foreach (var cld in allPts)
+            {
+                foreach (var ptLoc in cld.positions)
                 {
                     ptCloud.Add(ptLoc);
                 }
-                return ptCloud;
             }
 
-           
+            return ptCloud;
+
         }
+
 
         /// <summary>
         /// The Exposure property controls where in the panel a component icon 
